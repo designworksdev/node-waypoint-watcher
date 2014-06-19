@@ -1,0 +1,35 @@
+{
+  "name": "waypoint-watcher",
+  "version": "0.1.0",
+  "description": "Browser library to watch for scroll and resize events",
+  "main": "index.js",
+  "dependencies": {
+    "jquery": "*",
+    "superemitter": "^0.1.1"
+  },
+  "devDependencies": {
+    "jscs": "^1.5.3",
+    "jshint": "^2.5.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublish": "ln -sf '../../hooks/pre-commit' .git/hooks/pre-commit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/tim-smart/node-waypoint-watcher.git"
+  },
+  "keywords": [
+    "scrollTop",
+    "waypoint",
+    "scroll",
+    "resize",
+    "watcher"
+  ],
+  "author": "Tim Smart <tim@fostle.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tim-smart/node-waypoint-watcher/issues"
+  },
+  "homepage": "https://github.com/tim-smart/node-waypoint-watcher"
+}
