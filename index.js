@@ -2,6 +2,7 @@
 
 var $        = require('jquery');
 var Emitter  = require('superemitter');
+var raf      = require('raf');
 
 var $win     = $(window);
 var handlers = {
@@ -9,28 +10,43 @@ var handlers = {
     resize: []
 };
 
-$win.on('scroll', function() {
+var scrollWorking = false;
+function handleScroll() {
     var scroll = $win.scrollTop();
 
     var fns = handlers.scroll;
     var fnsLength = fns.length;
-    var fn = null;
     for (var i = 0; i < fnsLength; i += 1) {
-        fn = fns[i];
-        fn(scroll);
+        fns[i](scroll);
     }
+
+    scrollWorking = false;
+}
+$win.on('scroll', function() {
+    if (scrollWorking) {
+        return;
+    }
+    scrollWorking = true;
+    raf(handleScroll);
 });
-$win.on('resize', function() {
+
+var resizeWorking = false;
+function handleResize() {
     var width = $win.width();
     var height = $win.height();
 
     var fns = handlers.resize;
     var fnsLength = fns.length;
-    var fn = null;
     for (var i = 0; i < fnsLength; i += 1) {
-        fn = fns[i];
-        fn(width, height);
+        fns[i](width, height);
     }
+}
+$win.on('resize', function() {
+    if (resizeWorking) {
+        return;
+    }
+    resizeWorking = true;
+    raf(handleResize);
 });
 
 // ====
@@ -42,8 +58,9 @@ $win.on('resize', function() {
  * @extends {Emitter}
  * @param {String}  type
  * @param {Element} $anchor
+ * @param {Function} percent
  */
-function WaypointWatcher(type, $anchor) {
+function WaypointWatcher(type, $anchor, percent) {
     var self = this;
 
     self.$anchor = $anchor;
@@ -55,6 +72,8 @@ function WaypointWatcher(type, $anchor) {
     self.width  = null;
     self.height = null;
 
+    self.percent = percent;
+
     self._state = {
         scroll: {},
         width: {},
@@ -63,21 +82,27 @@ function WaypointWatcher(type, $anchor) {
 
     if ('scroll' === type) {
         self.scroll = new Emitter();
+        var handler = null;
 
         if (self.$anchor) {
             self._offset = self.$anchor.offset().top - $win.scrollTop();
 
-            handlers.scroll.push(function(scroll) {
+            handler = function handler(scroll) {
                 self._offset = self.$anchor.offset().top - scroll;
                 self._onScroll();
-            });
+            };
         } else {
             self._offset = $win.scrollTop();
 
-            handlers.scroll.push(function(scroll) {
+            handler = function handler(scroll) {
                 self._offset = scroll;
                 self._onScroll();
-            });
+            };
+        }
+
+        handlers.scroll.push(handler);
+        if (self.percent) {
+            handlers.resize.push(handler);
         }
 
         setTimeout(function() {
@@ -111,9 +136,17 @@ var proto = WaypointWatcher.prototype;
  * @return {WaypointWatcher}
  */
 proto._onScroll = function _onScroll() {
+    var scroll = null;
+
+    if (this.percent) {
+        var height = this.percent();
+        scroll = (this._offset / height) * 100;
+    } else {
+        scroll = this._offset;
+    }
     return this._trigger(
         this.scroll,
-        this._offset,
+        scroll,
         this._state.scroll
     );
 };
