@@ -5,6 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "jquery": "*",
+    "oop-utils": "^0.2.2",
     "raf": "^2.0.1",
     "superemitter": "^0.1.1"
   },

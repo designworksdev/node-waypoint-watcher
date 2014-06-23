@@ -3,21 +3,24 @@
 var $        = require('jquery');
 var Emitter  = require('superemitter');
 var raf      = require('raf');
+var oop      = require('oop-utils');
 
 var $win     = $(window);
 var handlers = {
     scroll: [],
-    resize: []
+    width: [],
+    height: []
 };
 
 var scrollWorking = false;
 function handleScroll() {
+    /* jshint boss:true, plusplus:false */
     var scroll = $win.scrollTop();
 
     var fns = handlers.scroll;
-    var fnsLength = fns.length;
-    for (var i = 0; i < fnsLength; i += 1) {
-        fns[i](scroll);
+    var index = fns.length;
+    while (index--) {
+        fns[index](scroll);
     }
 
     scrollWorking = false;
@@ -32,13 +35,20 @@ $win.on('scroll', function() {
 
 var resizeWorking = false;
 function handleResize() {
+    /* jshint boss:true, plusplus:false */
     var width = $win.width();
     var height = $win.height();
 
-    var fns = handlers.resize;
-    var fnsLength = fns.length;
-    for (var i = 0; i < fnsLength; i += 1) {
-        fns[i](width, height);
+    var fns = handlers.width;
+    var index = fns.length;
+    while (index--) {
+        fns[index](width);
+    }
+
+    fns = handlers.height;
+    index = fns.length;
+    while (index--) {
+        fns[index](height);
     }
 }
 $win.on('resize', function() {
@@ -63,104 +73,156 @@ $win.on('resize', function() {
 function WaypointWatcher(type, $anchor, percent) {
     var self = this;
 
-    self.$anchor = $anchor;
-    self._offset = null;
-    self._width  = null;
-    self._height = null;
+    Emitter.call(self);
 
-    self.scroll = null;
-    self.width  = null;
-    self.height = null;
-
-    self.percent = percent;
-
-    self._state = {
-        scroll: {},
-        width: {},
-        height: {}
-    };
+    self.type      = type;
+    self.$anchor   = $anchor;
+    self._value    = null;
+    self.percent   = percent;
+    self._state    = {};
+    self._handlers = [];
 
     if ('scroll' === type) {
-        self.scroll = new Emitter();
         var handler = null;
 
         if (self.$anchor) {
-            self._offset = self.$anchor.offset().top - $win.scrollTop();
+            self._value = $win.scrollTop() - self.$anchor.offset().top;
 
             handler = function handler(scroll) {
-                self._offset = self.$anchor.offset().top - scroll;
-                self._onScroll();
+                self._value = scroll - self.$anchor.offset().top;
+                self._trigger();
             };
         } else {
-            self._offset = $win.scrollTop();
+            self._value = $win.scrollTop();
 
             handler = function handler(scroll) {
-                self._offset = scroll;
-                self._onScroll();
+                self._value = scroll;
+                self._trigger();
             };
         }
 
         handlers.scroll.push(handler);
         if (self.percent) {
-            handlers.resize.push(handler);
+            handlers.height.push(handler);
         }
-
-        setTimeout(function() {
-            self._onScroll();
-        }, 0);
-    } else if ('resize' === type) {
-        self.width   = new Emitter();
-        self.height  = new Emitter();
-
-        self._width  = $win.width();
-        self._height = $win.height();
-
-        handlers.resize.push(function(width, height) {
-            self._width  = width;
-            self._height = height;
-            self._onResize();
+    } else {
+        handlers[type].push(function(value) {
+            self._value = value;
+            self._trigger();
         });
-
-        setTimeout(function() {
-            self._onResize();
-        }, 0);
     }
+
+    raf(function() {
+        self._trigger();
+    });
 }
 
 module.exports = WaypointWatcher;
-var proto = WaypointWatcher.prototype;
+var proto = oop.inherits(WaypointWatcher, Emitter);
 
 /**
- * On scroll
+ * Range helper
  *
+ * @param {Object} opts
+ * @param {Funciton} handler
  * @return {WaypointWatcher}
  */
-proto._onScroll = function _onScroll() {
-    var scroll = null;
+proto.range = function range(opts, handler) {
+    var self = this;
 
-    if (this.percent) {
-        var height = this.percent();
-        scroll = (this._offset / height) * 100;
-    } else {
-        scroll = this._offset;
+    var index = null;
+    var value = self._rangeChecker(opts.min, opts.max);
+    var fn    = self._rangeHandler(value, handler);
+
+    function addHandler() {
+        if ('number' === typeof index) {
+            return;
+        }
+        index = self._handlers.push(fn) - 1;
     }
-    return this._trigger(
-        this.scroll,
-        scroll,
-        this._state.scroll
-    );
+    function removeHandler() {
+        if ('number' !== typeof index) {
+            return;
+        }
+        self._handlers.splice(index, 1);
+        index = null;
+    }
+
+    var goneOverStart = false;
+    var goneOverEnd = false;
+    opts.startEmitter.on(opts.start, function(over) {
+        if (over && !goneOverStart) {
+            addHandler();
+            handler('enter:down', opts.min);
+            goneOverStart = true;
+        } else if (goneOverStart) {
+            removeHandler();
+            handler('exit:up', opts.min);
+            goneOverStart = false;
+        }
+    });
+    opts.endEmitter.on(opts.end, function(over) {
+        if (over && !goneOverEnd) {
+            removeHandler();
+            handler('exit:down', opts.max);
+            goneOverEnd = true;
+        } else if (goneOverEnd) {
+            addHandler();
+            handler('enter:up', opts.max);
+            goneOverEnd = false;
+        }
+    });
+
+    return self;
+};
+
+/**
+ * Create handler for ranges
+ *
+ * @param {Function} process
+ * @param {Function} handler
+ * @return {Function}
+ */
+proto._rangeHandler = function _rangeHandler(process, handler) {
+    var self     = this;
+    var previous = null;
+    return function() {
+        var value = process(self._value);
+        if (value === previous) {
+            return;
+        }
+        previous = value;
+        handler('value', previous);
+    };
+};
+
+/**
+ * Utility for keeping values in range
+ *
+ * @param {Number} min
+ * @param {Number} max
+ * @return {Function}
+ */
+proto._rangeChecker = function _rangeChecker(min, max) {
+    return function(value) {
+        if (min > value) {
+            return min;
+        } else if (max < value) {
+            return max;
+        }
+        return value;
+    };
 };
 
 /**
  * Trigger some events, maybe.
  *
- * @param {Emitter} emitter
- * @param {Number}  offset
- * @param {Object}  state
  * @return {WaypointWatcher}
  */
-proto._trigger = function _trigger(emitter, offset, state) {
-    var waypoints       = emitter._eventKeys;
+proto._trigger = function _trigger() {
+    var offset          = this._value;
+    var state           = this._state;
+    var waypoints       = this._eventKeys;
     var waypointsLength = waypoints.length;
     var waypoint        = null;
     for (var i = 0; i < waypointsLength; i += 1) {
@@ -168,32 +230,22 @@ proto._trigger = function _trigger(emitter, offset, state) {
 
         if (offset > waypoint && true !== state[waypoint]) {
             state[waypoint] = true;
-            emitter.emit(waypoint, true);
+            this.emit(waypoint, true);
         } else if (offset < waypoint && false !== state[waypoint]) {
             state[waypoint] = false;
-            emitter.emit(waypoint, false);
+            this.emit(waypoint, false);
         }
     }
 
-    return this;
-};
-
-/**
- * On resize
- *
- * @return {WaypointWatcher}
- */
-proto._onResize = function _onResize() {
-    this._trigger(
-        this.width,
-        this._width,
-        this._state.width
-    );
-    this._trigger(
-        this.height,
-        this._height,
-        this._state.height
-    );
+    /* jshint boss:true, plusplus:false */
+    // Trigger handlers if any
+    var fns = this._handlers;
+    var index = fns.length;
+    if (index) {
+        while (index--) {
+            fns[index]();
+        }
+    }
 
     return this;
 };
