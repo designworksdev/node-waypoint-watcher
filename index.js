@@ -131,7 +131,7 @@ proto.range = function range(opts, handler) {
     var self = this;
 
     var index = null;
-    var value = self._rangeChecker(opts.min, opts.max);
+    var value = self._rangeChecker(opts.min, opts.max, opts.process);
     var fn    = self._rangeHandler(value, handler);
 
     function addHandler() {
@@ -201,10 +201,15 @@ proto._rangeHandler = function _rangeHandler(process, handler) {
  *
  * @param {Number} min
  * @param {Number} max
+ * @param {Function} process
  * @return {Function}
  */
-proto._rangeChecker = function _rangeChecker(min, max) {
+proto._rangeChecker = function _rangeChecker(min, max, process) {
     return function(value) {
+        if (process) {
+            value = process(value);
+        }
+
         if (min > value) {
             return min;
         } else if (max < value) {
@@ -220,6 +225,10 @@ proto._rangeChecker = function _rangeChecker(min, max) {
  * @return {WaypointWatcher}
  */
 proto._trigger = function _trigger() {
+    if (this.percent) {
+        this._value = (this._value / this.percent()) * 100;
+    }
+
     var offset          = this._value;
     var state           = this._state;
     var waypoints       = this._eventKeys;
