@@ -50,13 +50,15 @@ function handleResize() {
     while (index--) {
         fns[index](height);
     }
+
+    resizeWorking = false;
 }
 $win.on('resize', function() {
     if (resizeWorking) {
         return;
     }
     resizeWorking = true;
-    raf(handleResize);
+    setTimeout(handleResize, 0);
 });
 
 // ====
@@ -106,6 +108,7 @@ function WaypointWatcher(type, $anchor, percent) {
             handlers.height.push(handler);
         }
     } else {
+        self._value = $win[type]();
         handlers[type].push(function(value) {
             self._value = value;
             self._trigger();
