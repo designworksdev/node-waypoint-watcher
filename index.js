@@ -58,7 +58,7 @@ $win.on('resize', function() {
         return;
     }
     resizeWorking = true;
-    setTimeout(handleResize, 0);
+    raf(handleResize);
 });
 
 // ====
@@ -79,6 +79,7 @@ function WaypointWatcher(type, $anchor, percent) {
 
     self.type      = type;
     self.$anchor   = $anchor;
+    self._scroll   = null;
     self._value    = null;
     self.percent   = percent;
     self._state    = {};
@@ -91,6 +92,7 @@ function WaypointWatcher(type, $anchor, percent) {
             self._value = $win.scrollTop() - self.$anchor.offset().top;
 
             handler = function handler(scroll) {
+                self._scroll = scroll;
                 self._value = scroll - self.$anchor.offset().top;
                 self._trigger();
             };
@@ -98,17 +100,18 @@ function WaypointWatcher(type, $anchor, percent) {
             self._value = $win.scrollTop();
 
             handler = function handler(scroll) {
-                self._value = scroll;
+                self._value = self._scroll = scroll;
                 self._trigger();
             };
         }
 
         handlers.scroll.push(handler);
         if (self.percent) {
-            handlers.height.push(handler);
+            handlers.height.push(function() {
+                handler(self._scroll);
+            });
         }
     } else {
-        self._value = $win[type]();
         handlers[type].push(function(value) {
             self._value = value;
             self._trigger();
