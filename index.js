@@ -277,6 +277,7 @@ proto._trigger = function _trigger() {
  */
 proto.resume = function resume() {
     this.paused = false;
+    this._trigger();
     return this;
 };
 
