@@ -84,6 +84,7 @@ function WaypointWatcher(type, $anchor, percent) {
     self.percent   = percent;
     self._state    = {};
     self._handlers = [];
+    self.paused    = false;
 
     if ('scroll' === type) {
         var handler = null;
@@ -231,6 +232,10 @@ proto._rangeChecker = function _rangeChecker(min, max, process) {
  * @return {WaypointWatcher}
  */
 proto._trigger = function _trigger() {
+    if (this.paused) {
+        return this;
+    }
+
     if (this.percent) {
         this._value = (this._value / this.percent()) * 100;
     }
@@ -262,5 +267,25 @@ proto._trigger = function _trigger() {
         }
     }
 
+    return this;
+};
+
+/**
+ * Resume the watcher
+ *
+ * @return {WaypointWatcher}
+ */
+proto.resume = function resume() {
+    this.paused = false;
+    return this;
+};
+
+/**
+ * Pause the watcher
+ *
+ * @return {WaypointWatcher}
+ */
+proto.pause = function pause() {
+    this.paused = true;
     return this;
 };
