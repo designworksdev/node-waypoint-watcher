@@ -1,65 +1,67 @@
 'use strict';
 
-var $        = require('jquery');
 var Emitter  = require('superemitter');
 var raf      = require('raf');
 var oop      = require('oop-utils');
+var $win     = null;
 
-var $win     = $(window);
 var handlers = {
     scroll: [],
     width: [],
     height: []
 };
+function setupHandlers() {
+    $win = WaypointWatcher.$(window);
 
-var scrollWorking = false;
-function handleScroll() {
-    /* jshint boss:true, plusplus:false */
-    var scroll = $win.scrollTop();
+    var scrollWorking = false;
+    function handleScroll() {
+        /* jshint boss:true, plusplus:false */
+        var scroll = $win.scrollTop();
 
-    var fns = handlers.scroll;
-    var index = fns.length;
-    while (index--) {
-        fns[index](scroll);
+        var fns = handlers.scroll;
+        var index = fns.length;
+        while (index--) {
+            fns[index](scroll);
+        }
+
+        scrollWorking = false;
     }
+    $win.on('scroll', function() {
+        if (scrollWorking) {
+            return;
+        }
+        scrollWorking = true;
+        raf(handleScroll);
+    });
 
-    scrollWorking = false;
+    var resizeWorking = false;
+    function handleResize() {
+        /* jshint boss:true, plusplus:false */
+        var width = $win.width();
+        var height = $win.height();
+
+        var fns = handlers.width;
+        var index = fns.length;
+        while (index--) {
+            fns[index](width);
+        }
+
+        fns = handlers.height;
+        index = fns.length;
+        while (index--) {
+            fns[index](height);
+        }
+
+        resizeWorking = false;
+    }
+    $win.on('resize', function() {
+        if (resizeWorking) {
+            return;
+        }
+        resizeWorking = true;
+        raf(handleResize);
+    });
 }
-$win.on('scroll', function() {
-    if (scrollWorking) {
-        return;
-    }
-    scrollWorking = true;
-    raf(handleScroll);
-});
-
-var resizeWorking = false;
-function handleResize() {
-    /* jshint boss:true, plusplus:false */
-    var width = $win.width();
-    var height = $win.height();
-
-    var fns = handlers.width;
-    var index = fns.length;
-    while (index--) {
-        fns[index](width);
-    }
-
-    fns = handlers.height;
-    index = fns.length;
-    while (index--) {
-        fns[index](height);
-    }
-
-    resizeWorking = false;
-}
-$win.on('resize', function() {
-    if (resizeWorking) {
-        return;
-    }
-    resizeWorking = true;
-    raf(handleResize);
-});
 
 // ====
 
@@ -75,8 +77,13 @@ $win.on('resize', function() {
 function WaypointWatcher(type, $anchor, percent) {
     var self = this;
 
+    if (!$win) {
+        setupHandlers();
+    }
+
     Emitter.call(self);
 
+    self.$         = WaypointWatcher.$;
     self.type      = type;
     self.$anchor   = $anchor;
     self._scroll   = null;

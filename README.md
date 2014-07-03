@@ -7,6 +7,7 @@ Watch for scrollTop events etc
 
 ```js
 var WW = require('waypoint-watcher');
+WW.$ = jQuery; // Or zepto!
 
 var watcher = new WW('scroll');
 
