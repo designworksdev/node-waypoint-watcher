@@ -1,6 +1,6 @@
 {
   "name": "waypoint-watcher",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Browser library to watch for scroll and resize events",
   "main": "index.js",
   "dependencies": {
