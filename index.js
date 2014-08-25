@@ -283,6 +283,10 @@ proto._trigger = function _trigger() {
  * @return {WaypointWatcher}
  */
 proto.resume = function resume() {
+    if (!this.paused) {
+        return this;
+    }
+
     this.paused = false;
     this._trigger();
     return this;
