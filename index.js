@@ -30,7 +30,7 @@ function setupHandlers() {
 
         scrollWorking = false;
     }
-    $win.on('scroll', function() {
+    $win.on('scroll resize', function() {
         if (scrollWorking) {
             return;
         }
