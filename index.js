@@ -14,6 +14,8 @@ var handlers = {
 };
 function setupHandlers() {
     $win = WaypointWatcher.$(window);
+    winHeight = $win.height();
+    winWidth  = $win.width();
 
     var scrollWorking = false;
     function handleScroll() {
