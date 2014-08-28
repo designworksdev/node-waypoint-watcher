@@ -1,9 +1,11 @@
 'use strict';
 
-var Emitter  = require('superemitter');
-var raf      = require('raf');
-var oop      = require('oop-utils');
-var $win     = null;
+var Emitter   = require('superemitter');
+var raf       = require('raf');
+var oop       = require('oop-utils');
+var $win      = null;
+var winHeight = null;
+var winWidth  = null;
 
 var handlers = {
     scroll: [],
@@ -37,19 +39,19 @@ function setupHandlers() {
     var resizeWorking = false;
     function handleResize() {
         /* jshint boss:true, plusplus:false */
-        var width = $win.width();
-        var height = $win.height();
+        winWidth = $win.width();
+        winHeight = $win.height();
 
         var fns = handlers.width;
         var index = fns.length;
         while (index--) {
-            fns[index](width);
+            fns[index](winWidth);
         }
 
         fns = handlers.height;
         index = fns.length;
         while (index--) {
-            fns[index](height);
+            fns[index](winHeight);
         }
 
         resizeWorking = false;
@@ -73,8 +75,9 @@ function setupHandlers() {
  * @param {String}  type
  * @param {Element} $anchor
  * @param {Function} percent
+ * @param {Boolean} bottom
  */
-function WaypointWatcher(type, $anchor, percent) {
+function WaypointWatcher(type, $anchor, percent, bottom) {
     var self = this;
 
     if (!$win) {
@@ -97,11 +100,21 @@ function WaypointWatcher(type, $anchor, percent) {
         var handler = null;
 
         if (self.$anchor) {
-            self._value = $win.scrollTop() - self.$anchor.offset().top;
+            if (true === bottom) {
+                self._value = $win.scrollTop() + winHeight -
+                    self.$anchor.offset().top;
+            } else {
+                self._value = $win.scrollTop() - self.$anchor.offset().top;
+            }
 
             handler = function handler(scroll) {
                 self._scroll = scroll;
-                self._value = scroll - self.$anchor.offset().top;
+                if (true === bottom) {
+                    self._value = scroll + winHeight -
+                        self.$anchor.offset().top;
+                } else {
+                    self._value = scroll - self.$anchor.offset().top;
+                }
                 self._trigger();
             };
         } else {
